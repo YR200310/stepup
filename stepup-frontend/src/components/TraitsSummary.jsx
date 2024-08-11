@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Radar } from 'react-chartjs-2';
+import { Chart as ChartJS, Title, Tooltip, Legend, RadialLinearScale, PointElement, LineElement } from 'chart.js';
+
+ChartJS.register(Title, Tooltip, Legend, RadialLinearScale, PointElement, LineElement);
 
 function TraitsSummary() {
   const [traitsSummary, setTraitsSummary] = useState({});
@@ -28,27 +32,51 @@ function TraitsSummary() {
     return <div>Loading...</div>;
   }
 
+  const chartData = {
+    labels: ['Extroversion', 'Neuroticism', 'Openness', 'Agreeableness', 'Conscientiousness'],
+    datasets: [
+      {
+        label: 'Traits',
+        data: [
+          traitsSummary.extroversion || 0,
+          traitsSummary.neuroticism || 0,
+          traitsSummary.openness || 0,
+          traitsSummary.agreeableness || 0,
+          traitsSummary.conscientiousness || 0
+        ],
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        borderColor: 'rgba(255, 99, 132, 1)',
+        borderWidth: 1
+      }
+    ]
+  };
+
+  const chartOptions = {
+    scales: {
+      r: {
+        angleLines: {
+          display: false
+        },
+        suggestedMin: 0,
+        suggestedMax: 10
+      }
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
-      <h1 className="text-3xl font-bold mb-6">Traits Summary</h1>
-      <table className="min-w-full bg-white border border-gray-300 rounded-lg shadow-md">
-        <thead>
-          <tr>
-            <th className="p-4 border-b">Trait</th>
-            <th className="p-4 border-b">Count</th>
-          </tr>
-        </thead>
-        <tbody>
-          {Object.entries(traitsSummary).map(([trait, count]) => (
-            <tr key={trait}>
-              <td className="p-4 border-b">{trait}</td>
-              <td className="p-4 border-b">{count}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <div className="mt-6 text-lg font-semibold">
-        {message}
+      <div className="flex justify-center items-center mb-8">
+        <div className="relative" style={{ width: '100%', maxWidth: '800px', height: '600px' }}>
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+            <Radar data={chartData} options={chartOptions} />
+          </div>
+        </div>
+      </div>
+      <div className="bg-white shadow-lg rounded-lg p-6 max-w-4xl mx-auto">
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">Your Personality Insights</h2>
+        <p className="text-lg text-gray-600">
+          {message}
+        </p>
       </div>
     </div>
   );
