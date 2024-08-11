@@ -3,6 +3,7 @@ from flask_cors import CORS
 import sqlite3
 import hashlib
 import logging
+import json  # JSONモジュールをインポート
 
 app = Flask(__name__)
 
@@ -33,6 +34,7 @@ def init_db():
         description TEXT,
         due_date TEXT,
         user_id INTEGER NOT NULL,
+        traits TEXT,  -- 性格特性を保存するための新しい列
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     ''')
@@ -58,6 +60,9 @@ def get_goals():
         conn.close()
         
         goals_list = [dict(goal) for goal in goals]
+        for goal in goals_list:
+            goal['traits'] = json.loads(goal['traits'])  # 性格特性をデコード
+
         return jsonify(goals_list)
     except Exception as e:
         logging.error(f"Error fetching goals: {str(e)}")  # エラーログを出力
@@ -66,23 +71,31 @@ def get_goals():
 # 目標を追加するエンドポイント
 @app.route('/goals', methods=['POST'])
 def add_goal():
-    new_goal = request.json
-    user_id = new_goal.get('user_id')  # ユーザーIDを取得
-
-    logging.info(f"Received POST request to add goal for user_id: {user_id} with data: {new_goal}")  # ログに出力
-
     try:
+        new_goal = request.json
+        user_id = new_goal.get('user_id')
+        traits = new_goal.get('traits', [])
+
+        if not new_goal['title'] or not user_id:
+            logging.error("Title or user_id is missing in the request")
+            return jsonify({'message': 'Title and user_id are required'}), 400
+
+        logging.info(f"Adding goal for user_id: {user_id}")
+
         conn = get_db_connection()
         conn.execute('''
-        INSERT INTO goals (title, description, due_date, user_id) 
-        VALUES (?, ?, ?, ?)
-        ''', (new_goal['title'], new_goal['description'], new_goal['due_date'], user_id))
+            INSERT INTO goals (title, description, due_date, user_id, traits) 
+            VALUES (?, ?, ?, ?, ?)
+        ''', (new_goal['title'], new_goal['description'], new_goal['due_date'], user_id, json.dumps(traits)))
         conn.commit()
         conn.close()
+
+        logging.info("Goal added successfully")
         return '', 201
     except Exception as e:
-        logging.error(f"Error adding goal: {str(e)}")  # エラーログを出力
-        return jsonify({'message': 'Error adding goal'}), 500
+        logging.error(f"Error adding goal: {str(e)}")
+        return jsonify({'message': f'Error adding goal: {str(e)}'}), 500
+
 
 # 目標を削除するエンドポイント
 @app.route('/goals/<int:id>', methods=['DELETE'])
@@ -110,9 +123,9 @@ def update_goal(id):
         conn = get_db_connection()
         conn.execute('''
             UPDATE goals
-            SET title = ?, description = ?, due_date = ?
+            SET title = ?, description = ?, due_date = ?, traits = ?
             WHERE id = ?
-        ''', (updated_goal['title'], updated_goal['description'], updated_goal['due_date'], id))
+        ''', (updated_goal['title'], updated_goal['description'], updated_goal['due_date'], json.dumps(updated_goal.get('traits', [])), id))
         conn.commit()
         conn.close()
         return '', 204
