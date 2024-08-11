@@ -3,6 +3,7 @@ import axios from 'axios';
 
 function TraitsSummary() {
   const [traitsSummary, setTraitsSummary] = useState({});
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const userId = localStorage.getItem('user_id');
 
@@ -12,7 +13,8 @@ function TraitsSummary() {
         params: { user_id: userId }
       })
         .then(response => {
-          setTraitsSummary(response.data);
+          setTraitsSummary(response.data.counts);
+          setMessage(response.data.message);
           setLoading(false);
         })
         .catch(error => {
@@ -45,6 +47,9 @@ function TraitsSummary() {
           ))}
         </tbody>
       </table>
+      <div className="mt-6 text-lg font-semibold">
+        {message}
+      </div>
     </div>
   );
 }

@@ -191,27 +191,94 @@ def login():
 @app.route('/traits_summary', methods=['GET'])
 def traits_summary():
     user_id = request.args.get('user_id')
+
     if not user_id:
         return jsonify({'message': 'User ID required'}), 400
+
+    trait_mapping = {
+        '神経症傾向': 'neuroticism',
+        '開放性': 'openness',
+        '外向性': 'extroversion',
+        '協調性': 'agreeableness',
+        '誠実性': 'conscientiousness'
+    }
 
     try:
         conn = get_db_connection()
         goals = conn.execute('SELECT traits FROM goals WHERE user_id = ?', (user_id,)).fetchall()
         conn.close()
 
-        traits_count = {}
+        counts = {
+            'extroversion': 0,
+            'neuroticism': 0,
+            'openness': 0,
+            'agreeableness': 0,
+            'conscientiousness': 0
+        }
+
         for goal in goals:
             traits = json.loads(goal['traits'])
+            print(f"Traits from goal: {traits}")  # デバッグ用
             for trait in traits:
-                if trait in traits_count:
-                    traits_count[trait] += 1
-                else:
-                    traits_count[trait] = 1
+                mapped_trait = trait_mapping.get(trait)
+                if mapped_trait in counts:
+                    counts[mapped_trait] += 1
 
-        return jsonify(traits_count)
+        print(f"Trait counts: {counts}")  # デバッグ用
+        summary_message = determine_summary_message(counts)
+
+        return jsonify({'counts': counts, 'message': summary_message})
     except Exception as e:
         logging.error(f"Error fetching traits summary: {str(e)}")
         return jsonify({'message': 'Error fetching traits summary'}), 500
+
+
+def determine_summary_message(trait_counts):
+    # 性格特性に応じたメッセージを返す関数
+    extroversion = trait_counts.get('extroversion', 0)
+    neuroticism = trait_counts.get('neuroticism', 0)
+    openness = trait_counts.get('openness', 0)
+    agreeableness = trait_counts.get('agreeableness', 0)
+    conscientiousness = trait_counts.get('conscientiousness', 0)
+
+    # 特性とそのカウントをタプルにしてリストにする
+    traits = [
+        ('extroversion', extroversion),
+        ('neuroticism', neuroticism),
+        ('openness', openness),
+        ('agreeableness', agreeableness),
+        ('conscientiousness', conscientiousness)
+    ]
+
+    # カウントでソートし、上位2つを取得
+    sorted_traits = sorted(traits, key=lambda x: x[1], reverse=True)
+    highest_trait = sorted_traits[0][0]  # 1番高い
+    second_highest_trait = sorted_traits[1][0]  # 2番目に高い
+
+    # メッセージを決定
+    if (highest_trait == 'agreeableness' and second_highest_trait == 'conscientiousness') or (second_highest_trait == 'agreeableness' and highest_trait == 'conscientiousness'):
+        return "協調性と誠実性が高い人は、他人に対して優しく協力的で、かつ計画的で責任感が強いです。このタイプの人は、チームでの協力を重視しながらも、自分の仕事に対しては慎重に取り組み、目標に向かって着実に努力することができます。そのため、教育職やプロジェクトマネージャーなどの職業が向いています。教育職では、生徒との良好な関係を築きながら、計画的に授業を進める能力が活かされます。"
+    elif (highest_trait == 'openness' and second_highest_trait == 'conscientiousness') or (second_highest_trait == 'openness' and highest_trait == 'conscientiousness'):
+        return "開放性と誠実性が高い人は、新しい経験やアイデアに対する興味が強く、かつ計画的で責任感が強いです。この組み合わせの特徴として、創造的な活動に対する好奇心と、詳細に注意を払いながら目標を達成する能力があります。このタイプの人には、研究職や戦略コンサルタントなどが向いています。研究職では、新しいアイデアや技術に対する探求心を活かしつつ、計画的に実験や研究を進めることが求められます。戦略コンサルタントでは、創造的な解決策を考えながら、クライアントのビジネス課題に対して計画的にアプローチする能力が役立ちます。"
+    elif (highest_trait == 'extroversion' and second_highest_trait == 'agreeableness') or (second_highest_trait == 'extroversion' and highest_trait == 'agreeableness'):
+        return "このタイプの人は、社交的で人との関係を大切にし、他人に対して優しく、協力的な態度を持っています。教育職やカウンセラーが向いています。教育職では、生徒との良好な関係を築くことができ、カウンセラーやセラピストでは、人の話をよく聞き、支援することが得意です。どちらも対人関係が重要な職業で、他人との関係を築く能力が活かされます。"
+    elif (highest_trait == 'neuroticism' and second_highest_trait == 'openness') or (second_highest_trait == 'neuroticism' and highest_trait == 'openness'):
+        return "新しい経験やアイデアに対する好奇心が強い一方で、心配や不安を感じやすいこのタイプの人は、研究職やアート関連の職業に向いています。新しい挑戦や創造的な活動に対する興味を活かすことができる一方で、自己管理やストレス管理が重要です。これらの職業では、新しいアイデアや挑戦を追求しながらも、心の安定を保つための方法を見つけることが成功の鍵となります。"
+    # 他の条件も追加する
+    elif (highest_trait == 'agreeableness' and second_highest_trait == 'openness') or (second_highest_trait == 'agreeableness' and highest_trait == 'openness'):
+        return "協調性と外向性が高い人は、社交的で人との関係を築くのが得意であり、他人に対して優しく協力的な態度を持っています。この組み合わせの特徴は、対人関係のスキルが高く、チームでの協力やコミュニケーションが自然である点です。このタイプの人には、教育職やカウンセリング、営業職が向いています。教育職では、生徒や同僚と良好な関係を築きながら、協力的に授業を進めることができます。カウンセリングでは、他人の気持ちに共感しながら、サポートを提供することが得意です。"
+    elif (highest_trait == 'openness' and second_highest_trait == 'extroversion') or (second_highest_trait == 'openness' and highest_trait == 'extroversion'):
+        return "このタイプの人は、社交的で、楽しいことや新しい経験を好む一方、創造的で新しいアイデアに対してオープンです。マーケティングやPRの職業が向いており、社交的なスキルと創造力を活かせます。クリエイティブな職業、例えばデザイナーやアーティストも適しています。どちらも新しい挑戦やアイデアを楽しむ性格が活かされる仕事です。"
+    elif (highest_trait == 'neuroticism' and second_highest_trait == 'agreeableness') or (second_highest_trait == 'neuroticism' and highest_trait == 'agreeableness'):
+        return "他人に対して優しく協力的でありながら、心配や不安を感じやすいこのタイプの人は、支援職やカウンセリングの職業が向いています。人をサポートし、共感や支援を自然に行うことができるため、対人支援の役割において大きな価値を発揮します。ただし、感情の安定を保ち、ストレスをうまく管理するためのサポート体制が必要です。"
+    elif (highest_trait == 'conscientiousness' and second_highest_trait == 'extroversion') or (second_highest_trait == 'conscientiousness' and highest_trait == 'extroversion'):
+        return "このタイプの人は、社交的で活動的でありながら、計画的で責任感が強いです。プロジェクトマネージャーや営業職が向いています。プロジェクトマネージャーでは、計画を立ててチームをリードし、営業職では、人との関係を築きながら目標を達成することができます。どちらも計画性と社交的なスキルが求められる職業です。"
+    elif (highest_trait == 'conscientiousness' and second_highest_trait == 'neuroticism') or (second_highest_trait == 'conscientiousness' and highest_trait == 'neuroticism'):
+        return "計画的で責任感が強い一方で、心配や不安を感じやすいこのタイプの人は、詳細に注意を払う必要がある職業（例えば、品質管理やアナリスト）が向いています。責任感を持って物事を進める能力がありながらも、ストレス管理が重要です。細部に気を配りつつ、心の安定を保ちながら仕事をすることで、高い成果を上げることができるでしょう。"
+    elif (highest_trait == 'extroversion' and second_highest_trait == 'neuroticism') or (second_highest_trait == 'extroversion' and highest_trait == 'neuroticism'):
+        return "このタイプの人は、社交的でエネルギッシュですが、ストレスや心配に敏感で、感情が不安定になることがあります。こうした特徴を活かせる職業としては、カスタマーサポートやイベントプランナーが考えられます。カスタマーサポートでは社交的なスキルを活かせますし、イベントプランナーでは人と関わることが多く、エネルギーを持って取り組むことができます。ただし、ストレス管理のスキルが必要です。"
+    else:
+        return "特定の傾向が見られませんが、全体的にバランスが取れているようです。"
 
 
 if __name__ == '__main__':
