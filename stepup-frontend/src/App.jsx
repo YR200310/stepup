@@ -6,6 +6,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import GoalForm from './components/GoalForm';
 import GoalsList from './components/GoalsList';
+import TraitsSummary from './components/TraitsSummary';  // 追加
 
 function App() {
   const [goals, setGoals] = useState([]);
@@ -66,6 +67,7 @@ function App() {
         />
         <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/traits-summary" element={isAuthenticated ? <TraitsSummary /> : <Navigate to="/login" />} />  {/* 追加 */}
       </Routes>
     </Router>
   );

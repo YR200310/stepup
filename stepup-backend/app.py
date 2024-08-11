@@ -187,5 +187,32 @@ def login():
         logging.error(f"Error during login: {str(e)}")  # エラーログを出力
         return jsonify({'message': 'Error during login'}), 500
 
+# Traitsの集計を取得するエンドポイント
+@app.route('/traits_summary', methods=['GET'])
+def traits_summary():
+    user_id = request.args.get('user_id')
+    if not user_id:
+        return jsonify({'message': 'User ID required'}), 400
+
+    try:
+        conn = get_db_connection()
+        goals = conn.execute('SELECT traits FROM goals WHERE user_id = ?', (user_id,)).fetchall()
+        conn.close()
+
+        traits_count = {}
+        for goal in goals:
+            traits = json.loads(goal['traits'])
+            for trait in traits:
+                if trait in traits_count:
+                    traits_count[trait] += 1
+                else:
+                    traits_count[trait] = 1
+
+        return jsonify(traits_count)
+    except Exception as e:
+        logging.error(f"Error fetching traits summary: {str(e)}")
+        return jsonify({'message': 'Error fetching traits summary'}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True)
