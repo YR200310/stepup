@@ -3,10 +3,10 @@ import axios from 'axios';
 
 const traitsOptions = [
   '外向性',
-  '神経症傾向',
-  '開放性',
+  'ストレス',
+  '新規性',
   '協調性',
-  '誠実性'
+  '計画性'
 ];
 
 function GoalForm({ onGoalAdded }) {
@@ -16,6 +16,11 @@ function GoalForm({ onGoalAdded }) {
     due_date: '',
     traits: [] // 性格特性を管理するための状態
   });
+
+  // 今日の日付を取得
+  const today = new Date();
+  today.setDate(today.getDate() - 1); // 今日に1日加算
+  const minDate = today.toISOString().split('T')[0];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,6 +46,16 @@ function GoalForm({ onGoalAdded }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // `due_date` フィールドの検証
+    if (!newGoal.title || !newGoal.description || !newGoal.due_date) {
+      alert('すべてのフィールドを入力してください。');
+      return;
+    }
+    if (newGoal.due_date < minDate) {
+      alert('日付は今日より1日後以降の日にちを選んでください。');
+      return;
+    }
+
     axios.post('http://127.0.0.1:5000/goals', { ...newGoal, user_id: localStorage.getItem('user_id') })
       .then(response => {
         console.log('Goal added successfully:', response.data);
@@ -53,7 +68,10 @@ function GoalForm({ onGoalAdded }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
+    <div className="bg-clear-green">
+    <form onSubmit={handleSubmit}  
+    className="mb-4 p-6 bg-yellow-100 max-w-md mx-auto"
+    style={{ borderRadius: '15px', border: '2px solid #f59e0b' }} >
       <label className="block mb-4">
         <span className="text-gray-700">Title:</span>
         <input
@@ -82,6 +100,8 @@ function GoalForm({ onGoalAdded }) {
           name="due_date"
           value={newGoal.due_date}
           onChange={handleChange}
+          min={minDate} // 今日より1日後の日付のみ選択可能
+          required
           className="form-input mt-1 block w-full border-gray-300 rounded-md shadow-sm"
         />
       </label>
@@ -104,6 +124,8 @@ function GoalForm({ onGoalAdded }) {
         Add Goal
       </button>
     </form>
+    <div className="text-clear-green">a</div>
+    </div>
   );
 }
 

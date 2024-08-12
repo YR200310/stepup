@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 
 const traits = [
   '外向性',
-  '神経症傾向',
-  '開放性',
+  'ストレス',
+  '新規性',
   '協調性',
-  '誠実性'
+  '計画性'
 ];
 
 function PersonalityTraitsChecklist({ onTraitsChange }) {
