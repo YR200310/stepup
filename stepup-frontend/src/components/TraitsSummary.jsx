@@ -5,7 +5,7 @@ import { Chart as ChartJS, Title, Tooltip, Legend, RadialLinearScale, PointEleme
 
 ChartJS.register(Title, Tooltip, Legend, RadialLinearScale, PointElement, LineElement);
 
-function TraitsSummary() {
+function TraitsSummary({goals}) {
   const [traitsSummary, setTraitsSummary] = useState({});
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);

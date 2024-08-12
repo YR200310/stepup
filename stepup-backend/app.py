@@ -8,8 +8,7 @@ import json
 app = Flask(__name__)
 
 # CORS設定
-CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
-
+CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 # ログ設定
 logging.basicConfig(level=logging.INFO)
 
@@ -35,6 +34,7 @@ def init_db():
         due_date TEXT,
         user_id INTEGER NOT NULL,
         traits TEXT,
+        completed BOOLEAN DEFAULT FALSE,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     ''')
@@ -48,31 +48,17 @@ def setup():
 @app.route('/goals', methods=['GET'])
 def get_goals():
     user_id = request.args.get('user_id')
-    sort_by = request.args.get('sort_by', 'due_date')  # デフォルト値を設定
-    order = request.args.get('order', 'asc').upper()  # デフォルトは昇順
+    sort_by = request.args.get('sort_by', 'due_date')
+    order = request.args.get('order', 'ASC')
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    query = f"SELECT * FROM goals WHERE user_id = ? ORDER BY {sort_by} {order}"
+    cursor.execute(query, (user_id,))
+    goals = cursor.fetchall()
+    conn.close()
 
-    if order not in ['ASC', 'DESC']:
-        return jsonify({'message': 'Invalid order parameter'}), 400
-
-    logging.info(f"Received GET request for goals with user_id: {user_id}, sort_by: {sort_by}, order: {order}")
-
-    if not user_id:
-        return jsonify({'message': 'User ID required'}), 400
-
-    try:
-        conn = get_db_connection()
-        query = f'SELECT * FROM goals WHERE user_id = ? ORDER BY {sort_by} {order}'
-        goals = conn.execute(query, (user_id,)).fetchall()
-        conn.close()
-
-        goals_list = [dict(goal) for goal in goals]
-        for goal in goals_list:
-            goal['traits'] = json.loads(goal['traits']) if goal['traits'] else []
-
-        return jsonify(goals_list)
-    except Exception as e:
-        logging.error(f"Error fetching goals: {str(e)}")
-        return jsonify({'message': 'Error fetching goals'}), 500
+    return jsonify([dict(row) for row in goals])
 
 # 目標を追加するエンドポイント
 @app.route('/goals', methods=['POST'])
@@ -222,17 +208,15 @@ def traits_summary():
         }
 
         for goal in goals:
-            traits = json.loads(goal['traits'])
-            print(f"Traits from goal: {traits}")  # デバッグ用
+            traits = json.loads(goal['traits']) if goal['traits'] else []
             for trait in traits:
                 mapped_trait = trait_mapping.get(trait)
-                if mapped_trait in counts:
+                if mapped_trait:
                     counts[mapped_trait] += 1
 
-        print(f"Trait counts: {counts}")  # デバッグ用
         summary_message = determine_summary_message(counts)
 
-        return jsonify({'counts': counts, 'message': summary_message})
+        return jsonify({'counts': counts, 'summary_message': summary_message})
     except Exception as e:
         logging.error(f"Error fetching traits summary: {str(e)}")
         return jsonify({'message': 'Error fetching traits summary'}), 500
@@ -284,6 +268,9 @@ def determine_summary_message(trait_counts):
         return "このタイプの人は、社交的でエネルギッシュですが、ストレスや心配に敏感で、感情が不安定になることがあります。こうした特徴を活かせる職業としては、カスタマーサポートやイベントプランナーが考えられます。カスタマーサポートでは社交的なスキルを活かせますし、イベントプランナーでは人と関わることが多く、エネルギーを持って取り組むことができます。ただし、ストレス管理のスキルが必要です。"
     else:
         return "特定の傾向が見られませんが、全体的にバランスが取れているようです。"
+    
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)

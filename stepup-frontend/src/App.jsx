@@ -45,6 +45,20 @@ function App() {
     }
   };
 
+  const handleGoalCompletion = (goalId) => {
+    axios.patch(`http://127.0.0.1:5000/goals/${goalId}`, { completed: true })
+      .then(() => {
+        setGoals(goals.map(goal =>
+          goal.id === goalId ? { ...goal, completed: true } : goal
+        ));
+      })
+      .catch(error => {
+        console.error('Error updating goal:', error);
+      });
+  };
+
+  const completedGoals = goals.filter(goal => goal.completed);
+
   return (
     <Router>
       <Header setIsAuthenticated={setIsAuthenticated} />
@@ -57,9 +71,9 @@ function App() {
                 <div className="text-2xl text-gray-600">Loading...</div>
               </div>
             ) : (
-              <div className="min-h-screen bg-grid-pattern p-8"> 
+              <div className="min-h-screen bg-grid-pattern p-8">
                 <div className="max-w-4xl mx-auto bg-wood-brown p-8 rounded-lg shadow-lg">
-                  <GoalsList goals={goals} />
+                  <GoalsList goals={goals} onComplete={handleGoalCompletion} />
                   <GoalForm onGoalAdded={handleGoalAdded} />
                 </div>
               </div>
@@ -70,7 +84,7 @@ function App() {
         />
         <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/traits-summary" element={isAuthenticated ? <TraitsSummary /> : <Navigate to="/login" />} />
+        <Route path="/traits-summary" element={isAuthenticated ? <TraitsSummary goals={completedGoals} /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );
