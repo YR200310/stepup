@@ -3,11 +3,11 @@ from flask_cors import CORS
 import sqlite3
 import hashlib
 import logging
-import json  # JSONモジュールをインポート
+import json
 
 app = Flask(__name__)
 
-# CORSの設定を追加（HTTPメソッドやオリジンをすべて許可）
+# CORS設定
 CORS(app, resources={r"/*": {"origins": "*", "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"], "allow_headers": ["Content-Type", "Authorization"]}})
 
 # ログ設定
@@ -34,7 +34,7 @@ def init_db():
         description TEXT,
         due_date TEXT,
         user_id INTEGER NOT NULL,
-        traits TEXT,  -- 性格特性を保存するための新しい列
+        traits TEXT,
         FOREIGN KEY (user_id) REFERENCES users (id)
     )
     ''')
@@ -47,25 +47,31 @@ def setup():
 # 目標を取得するエンドポイント
 @app.route('/goals', methods=['GET'])
 def get_goals():
-    user_id = request.args.get('user_id')  # クエリパラメータからユーザーIDを取得
+    user_id = request.args.get('user_id')
+    sort_by = request.args.get('sort_by', 'due_date')  # デフォルト値を設定
+    order = request.args.get('order', 'asc').upper()  # デフォルトは昇順
 
-    logging.info(f"Received GET request for goals with user_id: {user_id}")  # ログに出力
+    if order not in ['ASC', 'DESC']:
+        return jsonify({'message': 'Invalid order parameter'}), 400
+
+    logging.info(f"Received GET request for goals with user_id: {user_id}, sort_by: {sort_by}, order: {order}")
 
     if not user_id:
         return jsonify({'message': 'User ID required'}), 400
 
     try:
         conn = get_db_connection()
-        goals = conn.execute('SELECT * FROM goals WHERE user_id = ?', (user_id,)).fetchall()
+        query = f'SELECT * FROM goals WHERE user_id = ? ORDER BY {sort_by} {order}'
+        goals = conn.execute(query, (user_id,)).fetchall()
         conn.close()
-        
+
         goals_list = [dict(goal) for goal in goals]
         for goal in goals_list:
-            goal['traits'] = json.loads(goal['traits'])  # 性格特性をデコード
+            goal['traits'] = json.loads(goal['traits']) if goal['traits'] else []
 
         return jsonify(goals_list)
     except Exception as e:
-        logging.error(f"Error fetching goals: {str(e)}")  # エラーログを出力
+        logging.error(f"Error fetching goals: {str(e)}")
         return jsonify({'message': 'Error fetching goals'}), 500
 
 # 目標を追加するエンドポイント
@@ -76,7 +82,7 @@ def add_goal():
         user_id = new_goal.get('user_id')
         traits = new_goal.get('traits', [])
 
-        if not new_goal['title'] or not user_id:
+        if not new_goal.get('title') or not user_id:
             logging.error("Title or user_id is missing in the request")
             return jsonify({'message': 'Title and user_id are required'}), 400
 
@@ -86,7 +92,7 @@ def add_goal():
         conn.execute('''
             INSERT INTO goals (title, description, due_date, user_id, traits) 
             VALUES (?, ?, ?, ?, ?)
-        ''', (new_goal['title'], new_goal['description'], new_goal['due_date'], user_id, json.dumps(traits)))
+        ''', (new_goal['title'], new_goal.get('description'), new_goal.get('due_date'), user_id, json.dumps(traits)))
         conn.commit()
         conn.close()
 
@@ -96,11 +102,10 @@ def add_goal():
         logging.error(f"Error adding goal: {str(e)}")
         return jsonify({'message': f'Error adding goal: {str(e)}'}), 500
 
-
 # 目標を削除するエンドポイント
 @app.route('/goals/<int:id>', methods=['DELETE'])
 def delete_goal(id):
-    logging.info(f"Received DELETE request to remove goal with id: {id}")  # ログに出力
+    logging.info(f"Received DELETE request to remove goal with id: {id}")
 
     try:
         conn = get_db_connection()
@@ -109,7 +114,7 @@ def delete_goal(id):
         conn.close()
         return '', 204
     except Exception as e:
-        logging.error(f"Error deleting goal: {str(e)}")  # エラーログを出力
+        logging.error(f"Error deleting goal: {str(e)}")
         return jsonify({'message': 'Error deleting goal'}), 500
 
 # 目標を更新するエンドポイント
@@ -117,7 +122,7 @@ def delete_goal(id):
 def update_goal(id):
     updated_goal = request.json
 
-    logging.info(f"Received PUT request to update goal with id: {id} with data: {updated_goal}")  # ログに出力
+    logging.info(f"Received PUT request to update goal with id: {id} with data: {updated_goal}")
 
     try:
         conn = get_db_connection()
@@ -125,12 +130,12 @@ def update_goal(id):
             UPDATE goals
             SET title = ?, description = ?, due_date = ?, traits = ?
             WHERE id = ?
-        ''', (updated_goal['title'], updated_goal['description'], updated_goal['due_date'], json.dumps(updated_goal.get('traits', [])), id))
+        ''', (updated_goal.get('title'), updated_goal.get('description'), updated_goal.get('due_date'), json.dumps(updated_goal.get('traits', [])), id))
         conn.commit()
         conn.close()
         return '', 204
     except Exception as e:
-        logging.error(f"Error updating goal: {str(e)}")  # エラーログを出力
+        logging.error(f"Error updating goal: {str(e)}")
         return jsonify({'message': 'Error updating goal'}), 500
 
 # ユーザー登録エンドポイント
@@ -140,7 +145,7 @@ def register():
     username = data.get('username')
     password = data.get('password')
 
-    logging.info(f"Received POST request to register user: {username}")  # ログに出力
+    logging.info(f"Received POST request to register user: {username}")
 
     if not username or not password:
         return jsonify({'message': 'Username and password required'}), 400
@@ -155,7 +160,7 @@ def register():
         return jsonify({'message': 'User registered successfully'}), 201
     except sqlite3.IntegrityError:
         conn.close()
-        logging.error(f"Username {username} already exists")  # エラーログを出力
+        logging.error(f"Username {username} already exists")
         return jsonify({'message': 'Username already exists'}), 400
 
 # ログインエンドポイント
@@ -165,7 +170,7 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
-    logging.info(f"Received POST request to login user: {username}")  # ログに出力
+    logging.info(f"Received POST request to login user: {username}")
 
     if not username or not password:
         return jsonify({'message': 'Username and password required'}), 400
@@ -178,13 +183,13 @@ def login():
         conn.close()
 
         if user:
-            logging.info(f"Login successful for user: {username}")  # ログに出力
+            logging.info(f"Login successful for user: {username}")
             return jsonify({'message': 'Login successful', 'user_id': user['id']}), 200
         else:
-            logging.warning(f"Login failed for user: {username}")  # 警告ログを出力
+            logging.warning(f"Login failed for user: {username}")
             return jsonify({'message': 'Invalid credentials'}), 401
     except Exception as e:
-        logging.error(f"Error during login: {str(e)}")  # エラーログを出力
+        logging.error(f"Error during login: {str(e)}")
         return jsonify({'message': 'Error during login'}), 500
 
 # Traitsの集計を取得するエンドポイント
@@ -196,11 +201,11 @@ def traits_summary():
         return jsonify({'message': 'User ID required'}), 400
 
     trait_mapping = {
-        '神経症傾向': 'neuroticism',
-        '開放性': 'openness',
+        'ストレス': 'neuroticism',
+        '新規性': 'openness',
         '外向性': 'extroversion',
         '協調性': 'agreeableness',
-        '誠実性': 'conscientiousness'
+        '計画性': 'conscientiousness'
     }
 
     try:
@@ -279,7 +284,6 @@ def determine_summary_message(trait_counts):
         return "このタイプの人は、社交的でエネルギッシュですが、ストレスや心配に敏感で、感情が不安定になることがあります。こうした特徴を活かせる職業としては、カスタマーサポートやイベントプランナーが考えられます。カスタマーサポートでは社交的なスキルを活かせますし、イベントプランナーでは人と関わることが多く、エネルギーを持って取り組むことができます。ただし、ストレス管理のスキルが必要です。"
     else:
         return "特定の傾向が見られませんが、全体的にバランスが取れているようです。"
-
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -6,7 +6,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import GoalForm from './components/GoalForm';
 import GoalsList from './components/GoalsList';
-import TraitsSummary from './components/TraitsSummary';  // 追加
+import TraitsSummary from './components/TraitsSummary';
 
 function App() {
   const [goals, setGoals] = useState([]);
@@ -53,12 +53,15 @@ function App() {
           path="/"
           element={isAuthenticated ? (
             loading ? (
-              <div>Loading...</div>
+              <div className="flex justify-center items-center h-screen">
+                <div className="text-2xl text-gray-600">Loading...</div>
+              </div>
             ) : (
-              <div className="min-h-screen bg-gray-100 p-8">
-                <h1 className="text-3xl font-bold mb-6">Goals</h1>
-                <GoalForm onGoalAdded={handleGoalAdded} />
-                <GoalsList goals={goals} />
+              <div className="min-h-screen bg-grid-pattern p-8"> 
+                <div className="max-w-4xl mx-auto bg-wood-brown p-8 rounded-lg shadow-lg">
+                  <GoalsList goals={goals} />
+                  <GoalForm onGoalAdded={handleGoalAdded} />
+                </div>
               </div>
             )
           ) : (
@@ -67,7 +70,7 @@ function App() {
         />
         <Route path="/login" element={<Login setIsAuthenticated={setIsAuthenticated} />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/traits-summary" element={isAuthenticated ? <TraitsSummary /> : <Navigate to="/login" />} />  {/* 追加 */}
+        <Route path="/traits-summary" element={isAuthenticated ? <TraitsSummary /> : <Navigate to="/login" />} />
       </Routes>
     </Router>
   );

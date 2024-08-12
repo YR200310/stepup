@@ -64,16 +64,17 @@ function TraitsSummary() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-grid-pattern p-8">
       <div className="flex justify-center items-center mb-8">
         <div className="relative" style={{ width: '100%', maxWidth: '800px', height: '600px' }}>
-          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center">
+      
+          <div className="absolute top-0 left-0 w-full h-full flex items-center justify-center bg-white">
             <Radar data={chartData} options={chartOptions} />
           </div>
         </div>
       </div>
       <div className="bg-white shadow-lg rounded-lg p-6 max-w-4xl mx-auto">
-        <h2 className="text-xl font-semibold mb-4 text-gray-700">Your Personality Insights</h2>
+        <h2 className="text-xl font-semibold mb-4 text-gray-700">あなたの性格と適正</h2>
         <p className="text-lg text-gray-600">
           {message}
         </p>
